@@ -1,3 +1,5 @@
+import java.util.Random;
+
 public class FilaConfig {
 
   private final double tempoMinChegada;
@@ -19,11 +21,15 @@ public class FilaConfig {
     this.servidores = servidores;
   }
 
-  public double getTempoSorteado(){
-    return tempoMinChegada + (Math.random() * this.tempoMaxChegada
-        - tempoMinChegada);
+  public double getTempoSorteadoChegada(){
+    return tempoMinChegada + (new Random().nextDouble() * (this.tempoMaxChegada
+        - tempoMinChegada));
   }
 
+  public double getTempoSorteadoSaida(){
+    return tempoMinSaida + (new Random().nextDouble() * (this.tempoMaxSaida
+        - tempoMinSaida));
+  }
   public double getTempoMinChegada() {
     return tempoMinChegada;
   }

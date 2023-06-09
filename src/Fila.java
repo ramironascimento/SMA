@@ -1,4 +1,5 @@
 import static java.util.Comparator.comparingDouble;
+import static java.util.Objects.isNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,17 +27,21 @@ public class Fila {
     this.idFila = idFila;
     this.temposPosicoes = new ArrayList<>(servidores + capacidade);
     this.filaConfig = new FilaConfig(minChegada, maxChegada, minSaida, maxSaida, capacidade, servidores);
-    this.temposPosicoes.addAll(Collections.nCopies(10, 0.0));
+    this.temposPosicoes.addAll(Collections.nCopies(capacidade + servidores, 0.0));
 
   }
 
 
   public void processaChegada(Evento evento) {
 
-    contabilizaTempo(evento);
+    //evento.getFilaDestino().contabilizaTempoDaFila(evento); //fila 1, TODO fila 2
+
+    //Main.TEMPO_ATUAL_SISTEMA = evento.getTempoAgendado();
+
+    Main.contabilizaFilas(evento);
 
     if (this.pessoasNaFila < this.filaConfig.getCapacidade()) {
-      this.pessoasNaFila++;
+      this.contabilizaPessoasNaFila(+1);
       if (this.pessoasNaFila <= this.filaConfig.getServidores()) {
         if (this.nodos.isEmpty()) {
           agendaSaida();
@@ -53,60 +58,36 @@ public class Fila {
   }
 
   public void processaPassagem(Evento evento) {
-    contabilizaTempo(evento);
 
+    Main.contabilizaFilas(evento);
     Fila filaOrigem = evento.getFilaOrigem();
     Fila filaDestino = evento.getFilaDestino();
     filaOrigem.contabilizaPessoasNaFila(-1);
     if (filaOrigem.getPessoasNaFila() >= filaOrigem.getFilaConfig().getServidores()) {
       filaOrigem.agendaPassagem();
     }
-
-    //TODO Fila filaDestino = filaOrigem.getProximaFila();
-    // IMPLEMENTAR PROBABILIDADE DE IR PARA CADA FILA
     if (filaDestino.getPessoasNaFila() < filaDestino.getCapacidade()) {
       filaDestino.contabilizaPessoasNaFila(1);
       if (filaDestino.getPessoasNaFila() <= filaDestino.getServidores()) {
-        filaDestino.agendaSaida();
+        filaDestino.agendaPassagem();
+
       }
+    } else {
+      filaDestino.contabilizaPerdas(1);
     }
 
     evento.setProcessado(true);
   }
 
-
-  public void processaSaida(Evento evento) {
-
-    contabilizaTempo(evento);
-
-    this.pessoasNaFila--;
-    if (this.pessoasNaFila >= this.filaConfig.getServidores()) {
-      agendaSaida();
-    }
-
-    evento.setProcessado(true);
+  private void contabilizaPerdas(int i) {
+    this.perdas=this.perdas+i;
   }
 
+  private Fila escolheProximaFila() {
 
-  public void agendaChegada() {
-    double tempoSorteado = filaConfig.getTempoSorteado();
+    Fila filaEscolhida = null;
 
-    Processador.registraNovoEvento(TipoAcao.CHEGADA, Main.TEMPO_ATUAL_SISTEMA + tempoSorteado, tempoSorteado, this, null);
-
-  }
-
-  public void agendaSaida() {
-
-    var tempoSortiado = filaConfig.getTempoSorteado();
-
-    Processador.registraNovoEvento(TipoAcao.SAIDA, Main.TEMPO_ATUAL_SISTEMA + tempoSortiado, tempoSortiado, this, null);
-
-  }
-
-  public void agendaPassagem() {
-
-    var tempoSortiado = filaConfig.getTempoSorteado();
-
+Main.contador++;
     double random = Math.random(); // = 0.1
 
     List<Entry<Fila, Double>> entrySetOrdenada = probabilidadeNodosFilho.entrySet()
@@ -114,47 +95,91 @@ public class Fila {
         .sorted(comparingDouble((Entry<Fila, Double> o) -> o.getValue()).reversed())
         .collect(Collectors.toList());
 
-    Fila filaEscolhida = null; //TODO FAZER ALGORITMO PARA PEGAR A PROXIMA FILA
-
     double acumulador = 0.0;
-    for (int i = 0; i < entrySetOrdenada.size(); i++) {
+    for (int i = 0; i < entrySetOrdenada.size() && isNull(filaEscolhida); i++) {
       if (random < entrySetOrdenada.get(i).getValue() + acumulador) {
         filaEscolhida = entrySetOrdenada.get(i).getKey();
       } else {
         acumulador += entrySetOrdenada.get(i).getValue();
       }
     }
+    return filaEscolhida;
+  }
 
-    TipoAcao acao;
-    if (filaEscolhida == null) {
-      acao = TipoAcao.SAIDA;
-    } else {
-      acao = TipoAcao.CHEGADA;
+
+  public void processaSaida(Evento evento) {
+
+    //contabilizaTempoDaFila(evento);
+    Main.contabilizaFilas(evento);
+    //Main.TEMPO_ATUAL_SISTEMA = evento.getTempoAgendado();
+
+    this.contabilizaPessoasNaFila(-1);
+    if (this.pessoasNaFila >= this.filaConfig.getServidores()) {
+//      agendaSaida();
+      agendaPassagem();
     }
 
-    Processador.registraNovoEvento(acao, Main.TEMPO_ATUAL_SISTEMA + tempoSortiado, tempoSortiado, this, filaEscolhida);
+    evento.setProcessado(true);
+  }
+
+
+  public void agendaChegada() {
+
+    double tempoSorteado = filaConfig.getTempoSorteadoChegada();
+
+    Processador.registraNovoEvento(TipoAcao.CHEGADA, Main.TEMPO_ATUAL_SISTEMA + tempoSorteado, tempoSorteado, null, this);
+
+  }
+
+  public void agendaSaida() {
+
+    var tempoSorteado = this.filaConfig.getTempoSorteadoSaida();
+
+    Processador.registraNovoEvento(TipoAcao.SAIDA, Main.TEMPO_ATUAL_SISTEMA + tempoSorteado, tempoSorteado, this, null);
+
+  }
+
+  public void agendaPassagem() {
+
+    var tempoSorteado = filaConfig.getTempoSorteadoSaida();
+    Fila filaEscolhida = this.escolheProximaFila();
+    if (filaEscolhida == null) {
+      Processador.registraNovoEvento(TipoAcao.SAIDA, Main.TEMPO_ATUAL_SISTEMA + tempoSorteado, tempoSorteado, this, null);
+    } else {
+      Processador.registraNovoEvento(TipoAcao.PASSAGEM, Main.TEMPO_ATUAL_SISTEMA + tempoSorteado, tempoSorteado, this, filaEscolhida);
+    }
+
   }
 
   public void contabilizaPessoasNaFila(int i) {
-    this.pessoasNaFila = +i;
+    this.pessoasNaFila = this.pessoasNaFila + i;
   }
 
-  @Override
-  public String toString() {
-    return "Fila " + idFila + "{" +
-        "perda=" + perdas +
-        ", pessoas=" + pessoasNaFila +
-        ", tempos=" + temposPosicoes +
-        '}';
-  }
-
-  private void contabilizaTempo(Evento evento) {
+  public void contabilizaTempoDaFila(Evento evento) {
     this.temposPosicoes.set(pessoasNaFila, this.temposPosicoes.get(pessoasNaFila) + evento.getTempoAgendado() -
         Main.TEMPO_ATUAL_SISTEMA);
-    Main.TEMPO_ATUAL_SISTEMA = evento.getTempoAgendado();
+    //System.out.println(Main.TEMPO_ATUAL_SISTEMA + " -> " + evento.getTipoAcao() + ", " + evento.getFilaOrigem() + " - " + evento.getFilaDestino());
   }
 
-  //region  getters setters
+
+  //region  getters setters toString
+  public String toString(boolean arredondado) {
+    List<String> collect = null;
+    int indexPrimeiroZero = temposPosicoes.indexOf(0.0);
+    if (arredondado) {
+      collect = temposPosicoes.subList((Math.max((indexPrimeiroZero - 100), 0)), indexPrimeiroZero).stream()
+          .map(e -> Double.toString(e).substring(0, 3))
+          .collect(Collectors.toList());
+    } else {
+      collect = temposPosicoes.subList(0, indexPrimeiroZero).stream().map(e -> Double.toString(e))
+          .collect(Collectors.toList());
+    }
+    return "Fila" + idFila + "{" +
+        "perda=" + perdas +
+        ", pessoas=" + pessoasNaFila +
+        ", tempos=" + collect +
+        '}';
+  }
 
   public Map<Fila, Double> getProbabilidadeNodosFilho() {
     return probabilidadeNodosFilho;
@@ -180,9 +205,6 @@ public class Fila {
     this.idFila = idFila;
   }
 
-  public int getPerdas() {
-    return perdas;
-  }
 
   public void setPerdas(int perdas) {
     this.perdas = perdas;
@@ -220,7 +242,7 @@ public class Fila {
     return this.filaConfig.getCapacidade();
   }
 
-  public void ligaNodosFilhos(Map<Fila, Double> probabilidades) {
+  public void setNodosFilhosESuasRespectivasProbabilidades(Map<Fila, Double> probabilidades) {
     this.nodos = probabilidades.keySet();
     this.probabilidadeNodosFilho = probabilidades;
   }

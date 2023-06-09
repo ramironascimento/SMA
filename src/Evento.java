@@ -1,3 +1,5 @@
+import static java.util.Objects.isNull;
+
 public class Evento {
 
   private boolean processado;
@@ -30,48 +32,32 @@ public class Evento {
     return filaOrigem;
   }
 
-  public boolean isProcessado() {
-    return processado;
-  }
-
-  public TipoAcao getTipoAcao() {
-    return tipoAcao;
-  }
-
-  public void setTipoAcao(TipoAcao tipoAcao) {
-    this.tipoAcao = tipoAcao;
-  }
-
-  public void setTempoAgendado(double tempoAgendado) {
-    this.tempoAgendado = tempoAgendado;
-  }
-
-  public double getTempoSorteado() {
-    return tempoSorteado;
-  }
-
-  public void setTempoSorteado(double tempoSorteado) {
-    this.tempoSorteado = tempoSorteado;
-  }
-
-  public void setFilaOrigem(Fila filaOrigem) {
-    this.filaOrigem = filaOrigem;
-  }
-
   public Fila getFilaDestino() {
     return filaDestino;
   }
 
   public void processa() {
+//    System.out.println("-> PROCESSA " + this.tipoAcao + " tempoAtual: " +Main.TEMPO_ATUAL_SISTEMA + ", origem="+(isNull(filaOrigem)?null:filaOrigem.toString(true))+", destino="+(isNull(filaDestino)?null:filaDestino.toString(true)));
+
     switch (this.tipoAcao) {
       case CHEGADA:
-        this.filaOrigem.processaChegada(this);
+        this.filaDestino.processaChegada(this);
         break;
       case PASSAGEM:
         this.filaOrigem.processaPassagem(this);
+        break;
       case SAIDA:
         this.filaOrigem.processaSaida(this);
         break;
     }
+  }
+
+  @Override
+  public String toString() {
+    return "Evento{" +
+        "tipoAcao=" + tipoAcao +
+        ", filaOrigem=" + filaOrigem +
+        ", filaDestino=" + filaDestino +
+        '}';
   }
 }

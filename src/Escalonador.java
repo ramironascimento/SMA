@@ -26,6 +26,7 @@ public class Escalonador {
   }
 
   public Optional<Evento> getNext(){
+    Main.contador++;
     Evento proximo = eventosNaoProcessados.poll();
     eventosProcessados.add(proximo);
     return Optional.ofNullable(proximo);
@@ -38,4 +39,6 @@ public class Escalonador {
   public int getQuantidadeEventosProcessados() {
     return eventosProcessados.size();
   }
+
+
 }
